@@ -8,7 +8,7 @@ Client Server application (TCP) where message exchange is done using Public key 
 • Client -- responds -> encrypted message "Hi, this is ID!" using servers public key.
  
 **Bonus** <br />
-Added further messaging between server and client with random sleeps/delays.
+Added further communication between server and client with sleeps/delays introduced randomly.
 
 • Server --- sends ---> encrypted message "Its me Server, sending further random message -> Blah!" using clients public key.
 
