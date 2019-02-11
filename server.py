@@ -1,126 +1,77 @@
-from socket import socket, AF_INET, SOCK_STREAM
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.asymmetric import padding
-from cryptography.hazmat.primitives.serialization import load_pem_private_key
-from cryptography.hazmat.primitives.serialization import load_pem_public_key
+# Non-standard library for helper functions
+from helper_funcs import *
 from pathlib import Path
+import base64
 import time
+from socket import socket, AF_INET, SOCK_STREAM
 
 
-def generate_key():
-    server_private_key = rsa.generate_private_key(
-        public_exponent=65537,
-        key_size=2048,
-        backend=default_backend()
-    )
-    return server_private_key
+def gen_save_server_private_public_keys():
+    private_key = generate_key()
+    public_key = private_key.public_key()
+    # Save public and private key in pem file in the same dir as the current script
+    save_public_key_to_file(public_key, "server_public_key.pem")
+    save_private_key_to_file(private_key, "server_private_key.pem")
 
 
-def save_public_key_to_file(pk, filename):
-    pem = pk.public_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PublicFormat.SubjectPublicKeyInfo,
-    )
-    with open(filename, 'wb') as pem_out:
-        pem_out.write(pem)
+def encrypt_send_message_to_client():
+    public_key_encrypted_message = encrypt_message(message, client_public_key)
+    subserver.send(public_key_encrypted_message)
+    print "Sending: \nActual Message = %s\n" % message
+    print "Encrypted message = %s" % base64.b64encode(public_key_encrypted_message)
+    print "=" * 125
 
 
-def encrypt_message(message, public_key):
-    encrypted_message = public_key.encrypt(
-        message,
-        padding.OAEP(
-            mgf=padding.MGF1(algorithm=hashes.SHA1()),
-            algorithm=hashes.SHA1(),
-            label=None
-        )
-    )
-    return encrypted_message
-
-
-def load_public_key(filename):
-    with open(filename, 'rb') as pem_in:
-        pemlines = pem_in.read()
-    public_key = load_pem_public_key(pemlines,
-                                     default_backend())
-    return public_key
-
-
-def decrypt_message(encrypted_message, private_key):
-    decrypted_message = private_key.decrypt(
-        encrypted_message,
-        padding.OAEP(
-            mgf=padding.MGF1(algorithm=hashes.SHA1()),
-            algorithm=hashes.SHA1(),
-            label=None
-        )
-    )
-    return decrypted_message
+def decrypt_message_from_client():
+    print "Received: \nEncrypted response from client =  %s" % base64.b64encode(encrypted_data)
+    server_private_key = load_private_key("server_private_key.pem")
+    decrypted_data = decrypt_message(encrypted_data, server_private_key)
+    print "\nDecrypted response  = ", decrypted_data
+    print "=" * 125
+    return decrypted_data
 
 
 if __name__ == '__main__':
-    # Generate RSA private and public key for the server
-    server_private_key = generate_key()
-    server_public_key = server_private_key.public_key()
+    public_key_file = Path("server_public_key.pem")
+    private_key_file = Path("server_private_key.pem")
 
-    # Save public key in pem file in the same dir as the current script
-    save_public_key_to_file(server_public_key, "server_public_key.pem")
+    # Generate and save RSA private and public keys for the server if they don't exist
+    if not public_key_file.is_file() and not private_key_file.is_file():
+        gen_save_server_private_public_keys()
 
     # Open a socket connection for this server, bound to localhost port 11111
     server = socket(AF_INET, SOCK_STREAM)
     server.bind(('127.0.0.1', 11111))
     server.listen(1)
+    print "Started listening on server port 11111!"
 
-    print "Started listening on port"
+    # Adding random sleeps to test connection
+    time.sleep(5)
 
-    # Sleep for sometime as client may not have written public key yet.
-    time.sleep(2)
-
-    print "Done sleeping!!"
-
-    # Fetch client public key to encrypt the message and send the message
-    message = "Hi, who is this?"
-    client_public_key_file = "client_public_key.pem"
-    client_public_key = load_public_key(client_public_key_file)
-    encrypted_message = encrypt_message(message, client_public_key)
-
-    print "Encrypted message"
+    # Fetch client public key to send encrypted messages
+    client_public_key = load_public_key("client_public_key.pem")
 
     while True:
         subserver, addr = server.accept()
-        print "\nConnection initiated by a client. Server requesting identity!"
-        subserver.send(encrypted_message)
-        print "Actual Message = ", message
-        print "Encrypted message = \n", encrypted_message
-        print "=" * 120
+        print "Connection initiated by a client. Server requesting identity...\n"
+        message = "Hi, who is this?"
+        encrypt_send_message_to_client ()
 
         # Adding random sleeps to test connection
         time.sleep(1)
 
         while True:
+            # Receive client data and decrypt using server private key
             encrypted_data = subserver.recv(1024)
-            print "\nEncrypted response received from client =  "
-            print encrypted_data
-
-            # Decrypt client data using server private key
-            decrypted_client_data = decrypt_message(encrypted_data, server_private_key)
-            print "Decrypted response  = ", decrypted_client_data
-            print "=" * 120
-
+            decrypted_client_data = decrypt_message_from_client()
             if "Exiting" in decrypted_client_data:
-                print "\nClient exited! Server now exiting..."
+                print "\nClient has exited! Server now exiting...\n"
                 break
 
             # Adding random sleeps to test connection
             time.sleep(0.5)
-            message = "Its me Server, sending further random message!"
-            encrypted_message = encrypt_message(message, client_public_key)
-            subserver.send(encrypted_message)
-            print "\nActual Message = ", message
-            print "Encrypted message = \n", encrypted_message
-            print "=" * 120
-        break
 
+            message = "Its me Server, sending further random message -> Blah!"
+            encrypt_send_message_to_client()
+        break
     server.close()
