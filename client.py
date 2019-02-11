@@ -59,7 +59,8 @@ if __name__ == '__main__':
 
         # Respond to the message received from server
         if decrypted_server_message == "Hi, who is this?":
-            message = "Hi, this is 001884817!"
+            nuid = base64.b64decode('MDAxODg0ODE3')
+            message = "Hi, this is " + nuid + "!"
         # If more than one random message from server exit!
         elif count == 1:
             message = "Just receiving random messages from server, Exiting..."
