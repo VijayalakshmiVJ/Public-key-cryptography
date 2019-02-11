@@ -23,9 +23,9 @@ def encrypt_send_message_to_server():
 
 
 def decrypt_message_from_server():
-    print "Received from server: \nEncrypted message = %s\n" % base64.b64encode(message_received)
+    print "Received from server: \nEncrypted message = %s\n" % base64.b64encode(server_message)
     client_private_key = load_private_key("client_private_key.pem")
-    decrypted_message = decrypt_message(message_received, client_private_key)
+    decrypted_message = decrypt_message(server_message, client_private_key)
     print "Decrypted message = ", decrypted_message
     print "=" * 125
     return decrypted_message
@@ -51,7 +51,7 @@ if __name__ == '__main__':
 
     while True:
         # Receive server data and decrypt using client private key
-        message_received = client.recv(4096)
+        server_message = client.recv(4096)
         decrypted_server_message = decrypt_message_from_server()
 
         # Adding random sleeps to test connection
