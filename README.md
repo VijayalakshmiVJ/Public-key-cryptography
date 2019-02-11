@@ -5,7 +5,7 @@ Client Server application (TCP) where message exchange is done using Public key 
 
 • Server --- sends ---> encrypted message "Hi, who is this?" using clients public key.
  
-• Client -- responds -> encrypted message "Hi, this is <NUID>!" using servers public key.
+• Client -- responds -> encrypted message "Hi, this is ID!" using servers public key.
  
 **Bonus** <br />
 Added further messaging between server and client with random sleeps/delays.
